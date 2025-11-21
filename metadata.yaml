@@ -3,4 +3,4 @@ display_name: Gotify消息同步插件 # 用于展示的名字，可以是方便
 desc: 企业级Gotify消息同步推送插件，支持实时消息同步、消息过滤、格式化、重试机制等功能。 # 插件简短描述
 version: v1.0.4 # 插件版本号。格式：v1.1.1 或者 v1.1
 author: AstrBot-Gotify-Plugin # 作者
-repo: https://github.com/your-repo/astrbot_plugin_gotify # 插件的仓库地址
+repo: https://github.com/xywml/astrbot_plugin_gotify # 插件的仓库地址

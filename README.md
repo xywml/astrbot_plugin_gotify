@@ -127,9 +127,6 @@ pip install -r requirements.txt
    重试队列: 0
 ```
 
-#### `/gotify_test`
-发送测试消息到Gotify服务器
-
 #### `/gotify_flush`
 手动刷新消息缓冲区
 

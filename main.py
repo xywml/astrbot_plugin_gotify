@@ -258,30 +258,6 @@ class GotifySyncPlugin(Star):
             self.logger.error(f"获取状态失败: {e}")
             yield event.plain_result(f"❌ 获取状态失败: {str(e)}")
 
-    @filter.command("gotify_test")
-    async def gotify_test(self, event: AstrMessageEvent):
-        """发送测试消息"""
-        try:
-            if not self.gotify_client or not self.gotify_client.is_connected:
-                yield event.plain_result("❌ Gotify客户端未连接")
-                return
-
-            # 发送测试消息
-            result = await self.gotify_client.send_message(
-                title="AstrBot Gotify插件测试",
-                message="这是一条来自AstrBot Gotify插件的测试消息",
-                priority=5
-            )
-
-            if result:
-                yield event.plain_result(f"✅ 测试消息发送成功，消息ID: {result.get('id')}")
-            else:
-                yield event.plain_result("❌ 测试消息发送失败")
-
-        except Exception as e:
-            self.logger.error(f"发送测试消息失败: {e}")
-            yield event.plain_result(f"❌ 发送测试消息失败: {str(e)}")
-
     @filter.command("gotify_flush")
     async def gotify_flush(self, event: AstrMessageEvent):
         """手动刷新消息缓冲区"""
