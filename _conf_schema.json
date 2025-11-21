@@ -1,0 +1,230 @@
+{
+  "gotify": {
+    "description": "Gotify服务器配置",
+    "type": "object",
+    "hint": "配置Gotify服务器的连接信息",
+    "obvious_hint": true,
+    "items": {
+      "server_url": {
+        "description": "Gotify服务器地址",
+        "type": "string",
+        "hint": "完整的Gotify服务器URL，如 https://gotify.example.com",
+        "obvious_hint": true
+      },
+      "app_token": {
+        "description": "应用Token",
+        "type": "string",
+        "hint": "Gotify应用的访问Token，在Gotify管理面板中创建应用时获得",
+        "obvious_hint": true
+      },
+      "timeout": {
+        "description": "连接超时时间(秒)",
+        "type": "int",
+        "hint": "WebSocket连接的超时时间，建议30-60秒",
+        "default": 30
+      },
+      "heartbeat_interval": {
+        "description": "心跳间隔(秒)",
+        "type": "int",
+        "hint": "WebSocket心跳检测间隔时间，建议30秒",
+        "default": 30
+      },
+      "reconnect": {
+        "description": "自动重连配置",
+        "type": "object",
+        "hint": "连接断开时的自动重连设置",
+        "items": {
+          "enabled": {
+            "description": "启用自动重连",
+            "type": "bool",
+            "hint": "是否在连接断开时自动重连",
+            "default": true
+          },
+          "max_attempts": {
+            "description": "最大重试次数",
+            "type": "int",
+            "hint": "连接失败后的最大重试次数",
+            "default": 10
+          },
+          "backoff_factor": {
+            "description": "退避因子",
+            "type": "int",
+            "hint": "重试间隔的指数增长因子",
+            "default": 2
+          },
+          "max_delay": {
+            "description": "最大延迟(秒)",
+            "type": "int",
+            "hint": "重试间隔的最大值",
+            "default": 60
+          }
+        }
+      }
+    }
+  },
+  "qq": {
+    "description": "QQ推送配置",
+    "type": "object",
+    "hint": "配置消息推送到QQ的相关设置",
+    "obvious_hint": true,
+    "items": {
+      "target_users": {
+        "description": "目标QQ号列表",
+        "type": "array",
+        "hint": "接收Gotify消息的QQ号，支持多个",
+        "obvious_hint": true
+      },
+      "message_format": {
+        "description": "消息格式配置",
+        "type": "object",
+        "hint": "设置推送消息的显示格式",
+        "items": {
+          "include_title": {
+            "description": "包含消息标题",
+            "type": "bool",
+            "hint": "是否在推送消息中包含原始标题",
+            "default": true
+          },
+          "include_priority": {
+            "description": "包含优先级",
+            "type": "bool",
+            "hint": "是否在消息中显示优先级信息",
+            "default": true
+          },
+          "include_timestamp": {
+            "description": "包含时间戳",
+            "type": "bool",
+            "hint": "是否在消息中显示接收时间",
+            "default": true
+          },
+          "max_message_length": {
+            "description": "最大消息长度",
+            "type": "int",
+            "hint": "单条消息的最大字符数，超过将被截断",
+            "default": 2000
+          }
+        }
+      }
+    }
+  },
+  "message": {
+    "description": "消息处理配置",
+    "type": "object",
+    "hint": "消息过滤、去重等高级设置",
+    "items": {
+      "filters": {
+        "description": "消息过滤配置",
+        "type": "object",
+        "hint": "设置消息过滤规则",
+        "items": {
+          "min_priority": {
+            "description": "最低优先级",
+            "type": "int",
+            "hint": "只接收高于此优先级的消息(1-10)",
+            "default": 1
+          },
+          "blocked_app_ids": {
+            "description": "屏蔽的应用ID列表",
+            "type": "array",
+            "hint": "不接收这些应用ID发送的消息",
+            "default": []
+          },
+          "blocked_titles": {
+            "description": "屏蔽的标题列表",
+            "type": "array",
+            "hint": "不接收包含这些关键词的消息标题",
+            "default": []
+          }
+        }
+      },
+      "deduplication": {
+        "description": "消息去重配置",
+        "type": "object",
+        "hint": "防止重复消息推送",
+        "items": {
+          "enabled": {
+            "description": "启用去重",
+            "type": "bool",
+            "hint": "是否开启消息去重功能",
+            "default": true
+          },
+          "window_seconds": {
+            "description": "去重时间窗口(秒)",
+            "type": "int",
+            "hint": "在此时间内的相同消息将被去重",
+            "default": 60
+          }
+        }
+      },
+      "buffer": {
+        "description": "消息缓冲配置",
+        "type": "object",
+        "hint": "批量处理消息的设置",
+        "items": {
+          "enabled": {
+            "description": "启用缓冲",
+            "type": "bool",
+            "hint": "是否开启消息批量处理",
+            "default": true
+          },
+          "batch_size": {
+            "description": "批量大小",
+            "type": "int",
+            "hint": "单次批量处理的消息数量",
+            "default": 10
+          },
+          "flush_interval": {
+            "description": "刷新间隔(秒)",
+            "type": "int",
+            "hint": "定时刷新缓冲区的间隔时间",
+            "default": 5
+          }
+        }
+      }
+    }
+  },
+  "storage": {
+    "description": "存储配置",
+    "type": "object",
+    "hint": "数据存储和日志相关设置",
+    "items": {
+      "data_dir": {
+        "description": "数据存储目录",
+        "type": "string",
+        "hint": "插件数据文件的存储路径",
+        "default": "./data"
+      },
+      "max_log_size": {
+        "description": "最大日志文件大小",
+        "type": "string",
+        "hint": "单个日志文件的最大大小，如 10MB",
+        "default": "10MB"
+      },
+      "backup_count": {
+        "description": "日志备份数量",
+        "type": "int",
+        "hint": "保留的日志备份文件数量",
+        "default": 5
+      }
+    }
+  },
+  "logging": {
+    "description": "日志配置",
+    "type": "object",
+    "hint": "插件日志输出设置",
+    "items": {
+      "level": {
+        "description": "日志级别",
+        "type": "string",
+        "hint": "日志输出级别，可选: DEBUG, INFO, WARNING, ERROR, CRITICAL",
+        "default": "INFO"
+      },
+      "format": {
+        "description": "日志格式",
+        "type": "string",
+        "hint": "日志输出格式，可选: json, text",
+        "default": "json"
+      }
+    }
+  }
+}

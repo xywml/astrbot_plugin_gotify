@@ -1,0 +1,25 @@
+# AstrBot Gotify Plugin Dependencies
+# Async HTTP and WebSocket client
+aiohttp>=3.8.0
+
+# Data validation and settings management
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Async JSON processing (built-in but explicit version)
+# json - built-in Python module
+
+# Cryptographic functions for security
+cryptography>=3.4.8
+
+# Date and time utilities
+python-dateutil>=2.8.2
+
+# Structured logging
+structlog>=22.1.0
+
+# Async task queue (optional for advanced features)
+# asyncio - built-in Python module
+
+# File locking for concurrent access
+filelock>=3.8.0

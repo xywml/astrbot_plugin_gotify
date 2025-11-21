@@ -1,0 +1,51 @@
+{
+  "gotify": {
+    "server_url": "https://your-gotify-server.com",
+    "app_token": "your_gotify_app_token_here",
+    "timeout": 30,
+    "heartbeat_interval": 30,
+    "reconnect": {
+      "enabled": true,
+      "max_attempts": 10,
+      "backoff_factor": 2,
+      "max_delay": 60
+    }
+  },
+  "qq": {
+    "target_users": [
+      "123456789",
+      "987654321"
+    ],
+    "message_format": {
+      "include_title": true,
+      "include_priority": true,
+      "include_timestamp": true,
+      "max_message_length": 2000
+    }
+  },
+  "message": {
+    "deduplication": {
+      "enabled": true,
+      "window_seconds": 60
+    },
+    "buffer": {
+      "enabled": true,
+      "batch_size": 10,
+      "flush_interval": 5
+    },
+    "filters": {
+      "min_priority": 1,
+      "blocked_app_ids": [],
+      "blocked_titles": []
+    }
+  },
+  "storage": {
+    "data_dir": "./data",
+    "max_log_size": "10MB",
+    "backup_count": 5
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "json"
+  }
+}
