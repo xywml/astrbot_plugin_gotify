@@ -24,7 +24,7 @@ from .utils import setup_logging, get_logger, DataStorage, MessageHistory
     "gotify_sync",
     "AstrBot-Gotify-Plugin",
     "企业级Gotify消息同步推送插件，支持实时消息同步、消息过滤、格式化等功能",
-    "1.0.3"
+    "1.0.4"
 )
 class GotifySyncPlugin(Star):
     """Gotify消息同步插件主类"""
@@ -150,6 +150,7 @@ class GotifySyncPlugin(Star):
         """初始化组件"""
         # 初始化消息处理器
         self.message_handler = MessageHandler(self.config, self.message_history)
+        await self.message_handler.start()
 
         # 初始化QQ推送服务
         self.qq_pusher = QQPusher(self.config, self.storage, self.context)
@@ -326,6 +327,9 @@ class GotifySyncPlugin(Star):
             if self.gotify_client:
                 await self.gotify_client.stop()
 
+            if self.message_handler:
+                await self.message_handler.stop()
+
             # 取消任务
             if self._client_task and not self._client_task.done():
                 self._client_task.cancel()
@@ -333,10 +337,6 @@ class GotifySyncPlugin(Star):
                     await self._client_task
                 except asyncio.CancelledError:
                     pass
-
-            # 刷新消息缓冲区
-            if self.message_handler:
-                await self.message_handler.flush_buffer()
 
             self.logger.info("Gotify同步插件已停止")
 

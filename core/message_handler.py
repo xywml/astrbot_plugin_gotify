@@ -206,6 +206,8 @@ class MessageHandler:
             )
         else:
             self.buffer = None
+        # 缓冲区自动刷新任务
+        self._buffer_task: Optional[asyncio.Task] = None
 
         # 统计信息
         self.stats = {
@@ -260,6 +262,7 @@ class MessageHandler:
 
                 # 检查是否需要缓冲
                 if self.buffer:
+                    await self._ensure_buffer_task()
                     return await self._handle_buffered_message(message_data)
                 else:
                     return await self._process_single_message(message_data)
@@ -332,6 +335,43 @@ class MessageHandler:
         """手动刷新消息缓冲器"""
         await self._flush_buffer()
 
+    async def _buffer_flush_loop(self):
+        """定时刷新缓冲区的后台任务"""
+        try:
+            while True:
+                await asyncio.sleep(self.buffer.flush_interval)
+                await self._flush_buffer()
+        except asyncio.CancelledError:
+            self.logger.info("缓冲区刷新任务已停止")
+            raise
+
+    async def _ensure_buffer_task(self):
+        """确保缓冲区刷新任务已启动"""
+        if not self.buffer or self._buffer_task:
+            return
+
+        loop = asyncio.get_running_loop()
+        self._buffer_task = loop.create_task(self._buffer_flush_loop())
+        self.logger.debug("缓冲区刷新任务已启动")
+
+    async def start(self):
+        """启动消息处理器所需的后台任务"""
+        if self.buffer:
+            await self._ensure_buffer_task()
+
+    async def stop(self):
+        """停止消息处理器"""
+        if self._buffer_task:
+            self._buffer_task.cancel()
+            try:
+                await self._buffer_task
+            except asyncio.CancelledError:
+                pass
+            finally:
+                self._buffer_task = None
+
+        await self._flush_buffer()
+
     async def _safe_callback_call(self, callback, *args, **kwargs):
         """安全调用回调函数"""
         try:
@@ -372,5 +412,6 @@ class MessageHandler:
             "size": self.buffer.size(),
             "batch_size": self.buffer.batch_size,
             "flush_interval": self.buffer.flush_interval,
-            "last_flush_time": self.buffer.last_flush_time
+            "last_flush_time": self.buffer.last_flush_time,
+            "auto_flush_running": self._buffer_task is not None and not self._buffer_task.done()
         }
