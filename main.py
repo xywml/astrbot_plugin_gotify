@@ -15,9 +15,9 @@ from astrbot.api import AstrBotConfig
 from astrbot.api import logger
 
 # 导入插件模块
-from config import GotifyConfig, get_config
-from core import GotifyClient, MessageHandler, QQPusher
-from utils import setup_logging, get_logger, DataStorage, MessageHistory
+from .config import GotifyConfig, get_config
+from .core import GotifyClient, MessageHandler, QQPusher
+from .utils import setup_logging, get_logger, DataStorage, MessageHistory
 
 
 @register(
