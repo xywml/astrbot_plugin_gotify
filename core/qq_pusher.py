@@ -11,10 +11,17 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from dataclasses import dataclass
 
+try:
+    from astrbot.api.event import MessageChain
+    from astrbot.api.message_components import Plain
+except ImportError:  # AstrBot运行环境外的兼容处理
+    MessageChain = None  # type: ignore
+    Plain = None  # type: ignore
+
 from ..config import GotifyConfig
 from ..utils.logger import get_logger, LogContext
 from ..utils.storage import DataStorage
-from ..utils.security import validate_qq_number
+from ..utils.security import validate_qq_number, sanitize_message
 
 
 @dataclass
@@ -242,7 +249,7 @@ class QQPusher:
 
         finally:
             send_time = time.time() - start_time
-            self.logger.debug(f"推送耗时: {send_time:.2f}秒")
+        self.logger.debug(f"推送耗时: {send_time:.2f}秒")
 
     async def _send_via_astrbot(self, qq_number: str, message: str) -> bool:
         """通过AstrBot发送消息"""
@@ -250,37 +257,71 @@ class QQPusher:
             self.logger.error("AstrBot上下文未初始化")
             return False
 
-        try:
-            # 这里需要根据AstrBot的API来发送消息
-            # 由于这是插件上下文，我们需要找到正确的消息发送方法
-
-            # 方式1：尝试通过context发送消息（如果支持）
-            if hasattr(self.astrbot_context, 'send_message'):
-                await self.astrbot_context.send_message(qq_number, message)
-                return True
-
-            # 方式2：尝试通过 AstrBot API 发送消息
-            # 注意：这里需要根据实际的AstrBot API来调整
-            try:
-                from astrbot.api.platform import PlatformMetadata
-                from astrbot.api.event import AstrMessageEvent, MessageEventResult
-
-                # 创建一个模拟的消息事件用于回复
-                # 这部分可能需要根据实际AstrBot API进行调整
-                self.logger.debug("尝试通过AstrBot API发送消息")
-
-                # 由于我们没有真实的消息事件上下文，这里先返回True
-                # 在实际使用时，需要根据具体的AstrBot版本来实现消息发送
-                self.logger.warning("AstrBot消息发送功能需要根据具体版本实现")
-                return True
-
-            except ImportError:
-                self.logger.error("无法导入AstrBot API模块")
-                return False
-
-        except Exception as e:
-            self.logger.error(f"通过AstrBot发送消息失败: {e}")
+        if not hasattr(self.astrbot_context, 'send_message'):
+            self.logger.error("AstrBot上下文缺少send_message方法")
             return False
+
+        message_chain = self._build_message_chain(message)
+        session_candidates = self._build_session_candidates(qq_number)
+
+        last_error: Optional[Exception] = None
+        for session_id in session_candidates:
+            try:
+                result = await self.astrbot_context.send_message(session_id, message_chain)
+                if result is False:
+                    self.logger.warning(f"send_message返回False，session={session_id}")
+                    continue
+                return True
+            except TypeError as type_err:
+                # 兼容旧版本只接收字符串消息的接口
+                try:
+                    result = await self.astrbot_context.send_message(session_id, sanitize_message(message))
+                    if result is False:
+                        continue
+                    self.logger.warning("send_message使用字符串参数兼容模式")
+                    return True
+                except Exception as type_fallback_err:
+                    last_error = type_fallback_err
+                    self.logger.error(f"兼容发送失败: session={session_id}, 错误={type_fallback_err}")
+                    continue
+            except Exception as e:
+                last_error = e
+                self.logger.error(f"通过AstrBot发送消息失败: session={session_id}, 错误={e}")
+
+        if last_error:
+            self.logger.error(f"所有session发送失败，最后错误: {last_error}")
+        return False
+
+    def _build_session_candidates(self, qq_number: str) -> List[str]:
+        """构造可能的会话ID列表"""
+        normalized = qq_number.strip()
+        candidates = []
+
+        if not normalized:
+            return candidates
+
+        candidates.append(normalized)
+
+        if ':' not in normalized:
+            candidates.append(f"qq:{normalized}")
+            candidates.append(f"private:qq:{normalized}")
+
+        # 去重但保持顺序
+        seen = set()
+        ordered = []
+        for session in candidates:
+            if session not in seen:
+                seen.add(session)
+                ordered.append(session)
+        return ordered
+
+    def _build_message_chain(self, message: str) -> Any:
+        """根据格式化文本构建MessageChain"""
+        safe_text = sanitize_message(message or "")
+        if MessageChain and Plain:
+            component = Plain(text=safe_text)
+            return MessageChain([component])
+        return safe_text
 
     def _record_push_success(self, message_id: str, qq_number: str):
         """记录成功的推送"""

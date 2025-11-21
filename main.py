@@ -6,8 +6,9 @@ AstrBot Gotify消息同步插件
 """
 
 import asyncio
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
@@ -18,13 +19,14 @@ from astrbot.api import logger
 from .config import GotifyConfig, get_config
 from .core import GotifyClient, MessageHandler, QQPusher
 from .utils import setup_logging, get_logger, DataStorage, MessageHistory
+from .utils.security import sanitize_message
 
 
 @register(
     "gotify_sync",
     "AstrBot-Gotify-Plugin",
     "企业级Gotify消息同步推送插件，支持实时消息同步、消息过滤、格式化等功能",
-    "1.0.4"
+    "1.0.5"
 )
 class GotifySyncPlugin(Star):
     """Gotify消息同步插件主类"""
@@ -258,6 +260,48 @@ class GotifySyncPlugin(Star):
             self.logger.error(f"获取状态失败: {e}")
             yield event.plain_result(f"❌ 获取状态失败: {str(e)}")
 
+    @filter.command("gotify_recent")
+    async def gotify_recent(self, event: AstrMessageEvent):
+        """查看最近的Gotify消息"""
+        try:
+            if not self.message_history:
+                yield event.plain_result("❌ 消息历史未初始化")
+                return
+
+            limit = self._parse_command_limit(event, default=3)
+            messages = self.message_history.get_recent_messages(limit=limit)
+
+            if not messages:
+                yield event.plain_result("📭 最近没有新的Gotify消息")
+                return
+
+            lines: List[str] = [
+                f"🗒️ 最近Gotify消息（展示 {len(messages)} 条）",
+                "=" * 30
+            ]
+
+            for idx, msg in enumerate(messages, 1):
+                title = sanitize_message(msg.get('title') or "无标题")
+                content = sanitize_message(msg.get('message') or "").replace('\r', ' ').replace('\n', ' ')
+                if len(content) > 120:
+                    content = content[:117] + "..."
+
+                created_at = self._format_timestamp(msg.get('created_at') or msg.get('received_at'))
+                priority = msg.get('priority', 5)
+                status_icon = "✅" if msg.get('qq_sent') else "⏳"
+                gotify_id = msg.get('gotify_id', msg.get('id', 'N/A'))
+
+                lines.append(f"{idx}. {status_icon} [{created_at}] P{priority} {title}")
+                lines.append(f"   ID: {gotify_id}")
+                if content:
+                    lines.append(f"   💬 {content}")
+
+            yield event.plain_result('\n'.join(lines))
+
+        except Exception as e:
+            self.logger.error(f"获取最近消息失败: {e}")
+            yield event.plain_result(f"❌ 获取最近消息失败: {str(e)}")
+
     @filter.command("gotify_flush")
     async def gotify_flush(self, event: AstrMessageEvent):
         """手动刷新消息缓冲区"""
@@ -318,3 +362,60 @@ class GotifySyncPlugin(Star):
 
         except Exception as e:
             self.logger.error(f"插件停止时出错: {e}")
+
+    def _extract_command_arguments(self, event: AstrMessageEvent) -> List[str]:
+        """提取指令参数"""
+        possible_attrs = ["command_args", "args"]
+        for attr in possible_attrs:
+            value = getattr(event, attr, None)
+            if value:
+                if isinstance(value, (list, tuple)):
+                    args = [str(v).strip() for v in value if str(v).strip()]
+                else:
+                    args = [str(value).strip()]
+                if args:
+                    return args
+
+        text = ""
+        get_plain = getattr(event, "get_plain_text", None)
+        if callable(get_plain):
+            try:
+                text = get_plain() or ""
+            except Exception:
+                text = ""
+        if not text:
+            text = str(getattr(event, "text_content", "") or "")
+
+        text = text.strip()
+        if not text:
+            return []
+
+        parts = text.split()
+        if len(parts) <= 1:
+            return []
+
+        return [p for p in parts[1:] if p]
+
+    def _parse_command_limit(self, event: AstrMessageEvent, default: int = 3) -> int:
+        """解析命令中的条数参数"""
+        limit = default
+        args = self._extract_command_arguments(event)
+        if args:
+            try:
+                limit = int(args[0])
+            except ValueError:
+                self.logger.warning(f"指令参数无法解析为整数: {args[0]}")
+        return max(1, min(20, limit))
+
+    def _format_timestamp(self, ts_value) -> str:
+        """格式化时间戳"""
+        if not ts_value:
+            return "--"
+        try:
+            if isinstance(ts_value, str):
+                dt = datetime.fromisoformat(ts_value.replace('Z', '+00:00'))
+            else:
+                dt = ts_value
+            return dt.strftime('%m-%d %H:%M')
+        except Exception:
+            return str(ts_value)

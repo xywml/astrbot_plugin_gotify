@@ -133,6 +133,9 @@ pip install -r requirements.txt
 #### `/gotify_retry`
 手动处理重试队列
 
+#### `/gotify_recent [count]`
+查看最近收到的Gotify消息，`count` 可选，范围1-20，默认3
+
 ## 🏗️ 架构设计
 
 ### 模块结构
