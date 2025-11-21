@@ -70,8 +70,8 @@
     "items": {
       "target_users": {
         "description": "目标QQ号列表",
-        "type": "array",
-        "hint": "接收Gotify消息的QQ号，支持多个",
+        "type": "list",
+        "hint": "接收Gotify消息的QQ号，支持多个，用逗号分隔",
         "obvious_hint": true
       },
       "message_format": {
@@ -125,14 +125,14 @@
           },
           "blocked_app_ids": {
             "description": "屏蔽的应用ID列表",
-            "type": "array",
-            "hint": "不接收这些应用ID发送的消息",
+            "type": "list",
+            "hint": "不接收这些应用ID发送的消息，用逗号分隔",
             "default": []
           },
           "blocked_titles": {
             "description": "屏蔽的标题列表",
-            "type": "array",
-            "hint": "不接收包含这些关键词的消息标题",
+            "type": "list",
+            "hint": "不接收包含这些关键词的消息标题，用逗号分隔",
             "default": []
           }
         }
