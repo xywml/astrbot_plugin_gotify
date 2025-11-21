@@ -192,7 +192,7 @@
         "description": "数据存储目录",
         "type": "string",
         "hint": "插件数据文件的存储路径",
-        "default": "./data"
+        "default": "./astrbot_plugin_gotify/data"
       },
       "max_log_size": {
         "description": "最大日志文件大小",

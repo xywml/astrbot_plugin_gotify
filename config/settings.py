@@ -95,7 +95,7 @@ class MessageConfig(BaseModel):
 
 class StorageConfig(BaseModel):
     """存储配置"""
-    data_dir: str = Field(default="./data", description="数据存储目录")
+    data_dir: str = Field(default="./astrbot_plugin_gotify/data", description="数据存储目录")
     max_log_size: str = Field(default="10MB", description="最大日志文件大小")
     backup_count: int = Field(default=5, ge=1, le=50, description="日志备份数量")
 

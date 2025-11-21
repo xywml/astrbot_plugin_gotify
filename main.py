@@ -24,7 +24,7 @@ from .utils import setup_logging, get_logger, DataStorage, MessageHistory
     "gotify_sync",
     "AstrBot-Gotify-Plugin",
     "企业级Gotify消息同步推送插件，支持实时消息同步、消息过滤、格式化等功能",
-    "1.0.0"
+    "1.0.3"
 )
 class GotifySyncPlugin(Star):
     """Gotify消息同步插件主类"""
@@ -109,7 +109,7 @@ class GotifySyncPlugin(Star):
                         "filters": {"min_priority": 1, "blocked_app_ids": [], "blocked_titles": []}
                     }),
                     "storage": self.astrbot_config.get("storage", {
-                        "data_dir": "./data",
+                        "data_dir": "./astrbot_plugin_gotify/data",
                         "max_log_size": "10MB",
                         "backup_count": 5
                     }),

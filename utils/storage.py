@@ -21,7 +21,7 @@ from .security import generate_message_id
 class DataStorage:
     """数据存储管理器"""
 
-    def __init__(self, data_dir: str = "./data"):
+    def __init__(self, data_dir: str = "./astrbot_plugin_gotify/data"):
         """初始化数据存储
 
         Args:
