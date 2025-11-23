@@ -137,7 +137,7 @@ class GotifySyncPlugin(Star):
                     "app_token": "your_app_token_here"
                 },
                 qq={
-                    "target_users": ["123456789"]
+                    "target_users": ["24A91XXXXXXXXXXXXX"]  # 示例会话ID
                 }
             )
             raise

@@ -133,8 +133,28 @@ def sanitize_message(message: str) -> str:
     return message.strip()
 
 
+def validate_session_id(session_id: str) -> bool:
+    """验证AstrBot会话ID格式"""
+    if not isinstance(session_id, str):
+        return False
+
+    session_id = session_id.strip()
+    if not session_id:
+        return False
+
+    # 支持Session ID（如：24A91XXXXXXXXXXXXX）
+    # 或UMO格式（如：小兮:FriendMessage:24A91XXXXXXXXXXXXX）
+    if ':' in session_id:
+        # UMO格式验证
+        parts = session_id.split(':')
+        return len(parts) >= 3 and all(part.strip() for part in parts)
+    else:
+        # Session ID格式验证（至少8位字符，支持字母数字）
+        return len(session_id) >= 8 and bool(re.match(r'^[a-zA-Z0-9]+$', session_id))
+
+
 def validate_qq_number(qq: str) -> bool:
-    """验证QQ号格式"""
+    """验证QQ号格式（已弃用，保留兼容性）"""
     if not isinstance(qq, str):
         return False
 

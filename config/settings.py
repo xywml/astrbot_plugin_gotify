@@ -52,17 +52,29 @@ class MessageFormatConfig(BaseModel):
 
 class QQConfig(BaseModel):
     """QQ推送配置"""
-    target_users: List[str] = Field(default_factory=list, description="目标QQ号列表")
+    target_users: List[str] = Field(default_factory=list, description="目标会话ID列表（AstrBot Session ID或UMO格式）")
     message_format: MessageFormatConfig = Field(default_factory=MessageFormatConfig)
 
     @validator('target_users')
     def validate_target_users(cls, v):
         if not v:
-            raise ValueError('target_users不能为空，至少需要指定一个QQ号')
-        # 简单的QQ号格式验证
-        for qq in v:
-            if not qq.isdigit() or len(qq) < 5 or len(qq) > 12:
-                raise ValueError(f'无效的QQ号格式: {qq}')
+            raise ValueError('target_users不能为空，至少需要指定一个会话ID')
+        # 会话ID格式验证
+        for session_id in v:
+            session_id = session_id.strip()
+            if not session_id:
+                raise ValueError('会话ID不能为空')
+            # 支持Session ID（如：24A91XXXXXXXXXXXXX）
+            # 或UMO格式（如：小兮:FriendMessage:24A91XXXXXXXXXXXXX）
+            if ':' in session_id:
+                # UMO格式验证
+                parts = session_id.split(':')
+                if len(parts) < 3:
+                    raise ValueError(f'无效的UMO格式: {session_id}')
+            else:
+                # Session ID格式验证（至少8位字符）
+                if len(session_id) < 8:
+                    raise ValueError(f'会话ID长度不足: {session_id}')
         return v
 
 
@@ -208,7 +220,7 @@ def get_config(config_file: Optional[str] = None) -> GotifyConfig:
                 server_url="https://gotify.example.com",
                 app_token="your_app_token_here"
             ),
-            qq=QQConfig(target_users=["123456789"])
+            qq=QQConfig(target_users=["24A91XXXXXXXXXXXXX"])  # 示例会话ID
         )
         default_config.save_to_file(config_file)
         return default_config

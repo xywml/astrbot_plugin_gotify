@@ -21,7 +21,7 @@ except ImportError:  # AstrBot运行环境外的兼容处理
 from ..config import GotifyConfig
 from ..utils.logger import get_logger, LogContext
 from ..utils.storage import DataStorage
-from ..utils.security import validate_qq_number, sanitize_message
+from ..utils.security import validate_session_id, validate_qq_number, sanitize_message
 
 
 @dataclass
@@ -110,8 +110,8 @@ class QQPusher:
         self.astrbot_context = astrbot_context
         self.logger = get_logger(__name__)
 
-        # 验证QQ号
-        self.target_users = self._validate_qq_numbers(config.qq.target_users)
+        # 验证会话ID
+        self.target_users = self._validate_session_ids(config.qq.target_users)
 
         # 重试队列
         self.retry_queue = PushRetryQueue(max_retries=3, retry_delay=5.0)
@@ -128,20 +128,26 @@ class QQPusher:
         # 推送任务
         self._push_tasks: List[asyncio.Task] = []
 
-    def _validate_qq_numbers(self, qq_numbers: List[str]) -> List[str]:
-        """验证QQ号格式"""
-        valid_qq = []
-        for qq in qq_numbers:
-            if validate_qq_number(qq):
-                valid_qq.append(qq)
-                self.logger.info(f"添加目标QQ号: {qq}")
+    def _validate_session_ids(self, session_ids: List[str]) -> List[str]:
+        """验证会话ID格式"""
+        valid_sessions = []
+        for session_id in session_ids:
+            # 兼容旧的QQ号格式
+            if validate_qq_number(session_id):
+                self.logger.warning(f"检测到旧版QQ号格式 '{session_id}'，建议使用AstrBot会话ID")
+                # 为旧QQ号添加前缀，使其兼容新的发送逻辑
+                valid_sessions.append(f"qq:{session_id}")
+                self.logger.info(f"添加目标会话ID: qq:{session_id}")
+            elif validate_session_id(session_id):
+                valid_sessions.append(session_id)
+                self.logger.info(f"添加目标会话ID: {session_id}")
             else:
-                self.logger.warning(f"无效的QQ号格式: {qq}")
+                self.logger.error(f"无效的会话ID格式: {session_id}")
 
-        if not valid_qq:
-            raise ValueError("没有有效的目标QQ号")
+        if not valid_sessions:
+            raise ValueError("没有有效的目标会话ID")
 
-        return valid_qq
+        return valid_sessions
 
     async def send_message(self, message_data: Dict[str, Any], formatted_message: str) -> List[PushResult]:
         """发送消息到所有目标QQ用户
@@ -154,20 +160,20 @@ class QQPusher:
             List[PushResult]: 推送结果列表
         """
         if not self.target_users:
-            self.logger.error("没有配置目标QQ号")
+            self.logger.error("没有配置目标会话ID")
             return []
 
         results = []
         message_id = str(message_data.get('id', ''))
 
         with LogContext(self.logger, message_id=message_id):
-            self.logger.info(f"开始推送消息到 {len(self.target_users)} 个QQ用户")
+            self.logger.info(f"开始推送消息到 {len(self.target_users)} 个会话")
 
-            # 并发推送到所有用户
+            # 并发推送到所有会话
             tasks = []
-            for qq_number in self.target_users:
+            for session_id in self.target_users:
                 task = asyncio.create_task(
-                    self._send_to_user(qq_number, message_data, formatted_message)
+                    self._send_to_user(session_id, message_data, formatted_message)
                 )
                 tasks.append(task)
 
@@ -180,10 +186,10 @@ class QQPusher:
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
                     error_msg = f"推送异常: {str(result)}"
-                    self.logger.error(f"推送到QQ {self.target_users[i]} 失败: {error_msg}")
+                    self.logger.error(f"推送到会话 {self.target_users[i]} 失败: {error_msg}")
                     final_results.append(PushResult(
                         success=False,
-                        qq_number=self.target_users[i],
+                        qq_number=self.target_users[i],  # 保持字段名兼容性
                         message_id=message_id,
                         error_message=error_msg
                     ))
@@ -195,54 +201,54 @@ class QQPusher:
 
             return final_results
 
-    async def _send_to_user(self, qq_number: str, message_data: Dict[str, Any], formatted_message: str) -> PushResult:
-        """发送消息到指定QQ用户"""
+    async def _send_to_user(self, session_id: str, message_data: Dict[str, Any], formatted_message: str) -> PushResult:
+        """发送消息到指定会话"""
         message_id = str(message_data.get('id', ''))
         start_time = time.time()
 
         try:
-            with LogContext(self.logger, qq_number=qq_number):
-                self.logger.debug(f"推送到QQ用户: {qq_number}")
+            with LogContext(self.logger, session_id=session_id):
+                self.logger.debug(f"推送到会话: {session_id}")
 
                 # 通过AstrBot发送消息
-                success = await self._send_via_astrbot(qq_number, formatted_message)
+                success = await self._send_via_astrbot(session_id, formatted_message)
 
                 if success:
-                    self.logger.info(f"推送到QQ {qq_number} 成功")
+                    self.logger.info(f"推送到会话 {session_id} 成功")
 
                     # 记录成功推送
-                    self._record_push_success(message_id, qq_number)
+                    self._record_push_success(message_id, session_id)
 
                     return PushResult(
                         success=True,
-                        qq_number=qq_number,
+                        qq_number=session_id,  # 保持字段名兼容性
                         message_id=message_id,
                         timestamp=datetime.now().isoformat()
                     )
                 else:
                     error_msg = "AstrBot推送失败"
-                    self.logger.error(f"推送到QQ {qq_number} 失败: {error_msg}")
+                    self.logger.error(f"推送到会话 {session_id} 失败: {error_msg}")
 
                     # 添加到重试队列
-                    self.retry_queue.add_retry(message_data, formatted_message, qq_number, error_msg)
+                    self.retry_queue.add_retry(message_data, formatted_message, session_id, error_msg)
 
                     return PushResult(
                         success=False,
-                        qq_number=qq_number,
+                        qq_number=session_id,  # 保持字段名兼容性
                         message_id=message_id,
                         error_message=error_msg
                     )
 
         except Exception as e:
             error_msg = f"推送异常: {str(e)}"
-            self.logger.error(f"推送到QQ {qq_number} 异常: {e}")
+            self.logger.error(f"推送到会话 {session_id} 异常: {e}")
 
             # 添加到重试队列
-            self.retry_queue.add_retry(message_data, formatted_message, qq_number, error_msg)
+            self.retry_queue.add_retry(message_data, formatted_message, session_id, error_msg)
 
             return PushResult(
                 success=False,
-                qq_number=qq_number,
+                qq_number=session_id,  # 保持字段名兼容性
                 message_id=message_id,
                 error_message=error_msg
             )
@@ -251,7 +257,7 @@ class QQPusher:
             send_time = time.time() - start_time
         self.logger.debug(f"推送耗时: {send_time:.2f}秒")
 
-    async def _send_via_astrbot(self, qq_number: str, message: str) -> bool:
+    async def _send_via_astrbot(self, session_id: str, message: str) -> bool:
         """通过AstrBot发送消息"""
         if not self.astrbot_context:
             self.logger.error("AstrBot上下文未初始化")
@@ -262,58 +268,38 @@ class QQPusher:
             return False
 
         message_chain = self._build_message_chain(message)
-        session_candidates = self._build_session_candidates(qq_number)
 
-        last_error: Optional[Exception] = None
-        for session_id in session_candidates:
+        # 直接使用提供的会话ID，不再构造候选列表
+        try:
+            result = await self.astrbot_context.send_message(session_id, message_chain)
+            if result is False:
+                self.logger.warning(f"send_message返回False，session={session_id}")
+                return False
+            return True
+        except TypeError as type_err:
+            # 兼容旧版本只接收字符串消息的接口
             try:
-                result = await self.astrbot_context.send_message(session_id, message_chain)
+                result = await self.astrbot_context.send_message(session_id, sanitize_message(message))
                 if result is False:
-                    self.logger.warning(f"send_message返回False，session={session_id}")
-                    continue
+                    self.logger.warning(f"send_message返回False（字符串模式），session={session_id}")
+                    return False
+                self.logger.warning("send_message使用字符串参数兼容模式")
                 return True
-            except TypeError as type_err:
-                # 兼容旧版本只接收字符串消息的接口
-                try:
-                    result = await self.astrbot_context.send_message(session_id, sanitize_message(message))
-                    if result is False:
-                        continue
-                    self.logger.warning("send_message使用字符串参数兼容模式")
-                    return True
-                except Exception as type_fallback_err:
-                    last_error = type_fallback_err
-                    self.logger.error(f"兼容发送失败: session={session_id}, 错误={type_fallback_err}")
-                    continue
-            except Exception as e:
-                last_error = e
-                self.logger.error(f"通过AstrBot发送消息失败: session={session_id}, 错误={e}")
+            except Exception as type_fallback_err:
+                self.logger.error(f"兼容发送失败: session={session_id}, 错误={type_fallback_err}")
+                return False
+        except Exception as e:
+            self.logger.error(f"通过AstrBot发送消息失败: session={session_id}, 错误={e}")
+            return False
 
-        if last_error:
-            self.logger.error(f"所有session发送失败，最后错误: {last_error}")
-        return False
-
-    def _build_session_candidates(self, qq_number: str) -> List[str]:
-        """构造可能的会话ID列表"""
-        normalized = qq_number.strip()
-        candidates = []
-
-        if not normalized:
-            return candidates
-
-        candidates.append(normalized)
-
-        if ':' not in normalized:
-            candidates.append(f"qq:{normalized}")
-            candidates.append(f"private:qq:{normalized}")
-
-        # 去重但保持顺序
-        seen = set()
-        ordered = []
-        for session in candidates:
-            if session not in seen:
-                seen.add(session)
-                ordered.append(session)
-        return ordered
+    def _record_push_success(self, message_id: str, session_id: str):
+        """记录成功的推送"""
+        try:
+            # 这里可以添加到数据库或其他存储中
+            # 目前只记录日志
+            self.logger.info(f"记录成功推送: 消息ID={message_id}, 会话={session_id}")
+        except Exception as e:
+            self.logger.error(f"记录推送成功失败: {e}")
 
     def _build_message_chain(self, message: str) -> Any:
         """根据格式化文本构建MessageChain"""
@@ -323,15 +309,7 @@ class QQPusher:
             return MessageChain([component])
         return safe_text
 
-    def _record_push_success(self, message_id: str, qq_number: str):
-        """记录成功的推送"""
-        try:
-            # 这里可以添加到数据库或其他存储中
-            # 目前只记录日志
-            self.logger.info(f"记录成功推送: 消息ID={message_id}, QQ={qq_number}")
-        except Exception as e:
-            self.logger.error(f"记录推送成功失败: {e}")
-
+    
     def _update_stats(self, results: List[PushResult]):
         """更新统计信息"""
         success_count = sum(1 for r in results if r.success)
@@ -359,12 +337,12 @@ class QQPusher:
         for task in retry_tasks:
             message_data = task['message_data']
             formatted_message = task['formatted_message']
-            qq_number = task['qq_number']
+            session_id = task['qq_number']  # 字段名保持兼容性
             retry_count = task['retry_count']
 
-            self.logger.info(f"重试推送: QQ={qq_number}, 重试次数={retry_count}")
+            self.logger.info(f"重试推送: 会话={session_id}, 重试次数={retry_count}")
 
-            result = await self._send_to_user(qq_number, message_data, formatted_message)
+            result = await self._send_to_user(session_id, message_data, formatted_message)
 
             if not result.success:
                 # 如果重试仍然失败，重新加入队列

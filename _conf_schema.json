@@ -63,15 +63,15 @@
     }
   },
   "qq": {
-    "description": "QQ推送配置",
+    "description": "消息推送配置",
     "type": "object",
-    "hint": "配置消息推送到QQ的相关设置",
+    "hint": "配置消息推送到AstrBot会话的相关设置",
     "obvious_hint": true,
     "items": {
       "target_users": {
-        "description": "目标QQ号列表",
+        "description": "目标会话ID列表",
         "type": "list",
-        "hint": "接收Gotify消息的QQ号，支持多个，用逗号分隔",
+        "hint": "接收Gotify消息的AstrBot会话ID，使用 /sid 命令获取UID值，支持多个，用逗号分隔",
         "obvious_hint": true
       },
       "message_format": {
