@@ -26,7 +26,7 @@ from .utils.security import sanitize_message
     "gotify_sync",
     "AstrBot-Gotify-Plugin",
     "企业级Gotify消息同步推送插件，支持实时消息同步、消息过滤、格式化等功能",
-    "1.0.5"
+    "1.0.6"
 )
 class GotifySyncPlugin(Star):
     """Gotify消息同步插件主类"""
