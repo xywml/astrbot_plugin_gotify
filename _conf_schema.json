@@ -69,9 +69,9 @@
     "obvious_hint": true,
     "items": {
       "target_users": {
-        "description": "目标会话ID列表",
+        "description": "目标会话ID列表(UMO格式)",
         "type": "list",
-        "hint": "接收Gotify消息的AstrBot会话ID，使用 /sid 命令获取UID值，支持多个，用逗号分隔",
+        "hint": "接收Gotify消息的AstrBot会话ID，必须使用完整的UMO格式。格式为: 平台名:消息类型:会话ID。例如: aiocqhttp:GroupMessage:123456789 (QQ群) 或 aiocqhttp:FriendMessage:123456789 (QQ私聊)。在对应的群聊或私聊中发送 /sid 命令可获取正确的会话ID。支持多个，用逗号分隔",
         "obvious_hint": true
       },
       "message_format": {

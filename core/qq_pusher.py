@@ -129,23 +129,48 @@ class QQPusher:
         self._push_tasks: List[asyncio.Task] = []
 
     def _validate_session_ids(self, session_ids: List[str]) -> List[str]:
-        """验证会话ID格式"""
+        """验证会话ID格式
+
+        AstrBot的send_message方法需要unified_msg_origin格式的session。
+        格式为: platform_name:message_type:session_id
+        例如: aiocqhttp:GroupMessage:123456789 (QQ群)
+              aiocqhttp:FriendMessage:123456789 (QQ私聊)
+        """
         valid_sessions = []
         for session_id in session_ids:
-            # 兼容旧的QQ号格式
-            if validate_qq_number(session_id):
-                self.logger.warning(f"检测到旧版QQ号格式 '{session_id}'，建议使用AstrBot会话ID")
-                # 为旧QQ号添加前缀，使其兼容新的发送逻辑
-                valid_sessions.append(f"qq:{session_id}")
-                self.logger.info(f"添加目标会话ID: qq:{session_id}")
+            session_id = session_id.strip()
+            # 检查是否为完整的UMO格式 (platform:message_type:session_id)
+            if ':' in session_id:
+                parts = session_id.split(':')
+                if len(parts) >= 3:
+                    valid_sessions.append(session_id)
+                    self.logger.info(f"添加目标会话ID(UMO格式): {session_id}")
+                else:
+                    self.logger.error(f"无效的UMO格式(需要至少3部分): {session_id}")
+            # 兼容旧的纯QQ号格式，给出警告但不再自动添加错误前缀
+            elif validate_qq_number(session_id):
+                self.logger.error(
+                    f"检测到旧版QQ号格式 '{session_id}'，无法主动推送消息。"
+                    f"请使用完整的UMO格式，如: aiocqhttp:GroupMessage:{session_id} (群聊) "
+                    f"或 aiocqhttp:FriendMessage:{session_id} (私聊)。"
+                    f"您可以在群聊或私聊中发送 /sid 命令获取正确的会话ID。"
+                )
             elif validate_session_id(session_id):
-                valid_sessions.append(session_id)
-                self.logger.info(f"添加目标会话ID: {session_id}")
+                # 纯session_id格式（不含平台信息），给出警告
+                self.logger.error(
+                    f"会话ID '{session_id}' 缺少平台和消息类型信息，无法主动推送消息。"
+                    f"请使用完整的UMO格式，如: aiocqhttp:GroupMessage:xxx 或 aiocqhttp:FriendMessage:xxx。"
+                    f"您可以在群聊或私聊中发送 /sid 命令获取正确的会话ID。"
+                )
             else:
                 self.logger.error(f"无效的会话ID格式: {session_id}")
 
         if not valid_sessions:
-            raise ValueError("没有有效的目标会话ID")
+            raise ValueError(
+                "没有有效的目标会话ID。请使用完整的UMO格式配置target_users，"
+                "例如: aiocqhttp:GroupMessage:123456789 或 aiocqhttp:FriendMessage:123456789。"
+                "您可以在群聊或私聊中发送 /sid 命令获取正确的会话ID。"
+            )
 
         return valid_sessions
 

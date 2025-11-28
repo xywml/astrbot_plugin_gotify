@@ -58,12 +58,20 @@ pip install -r requirements.txt
   },
   "qq": {
     "target_users": [
-      "123456789",
-      "987654321"
+      "aiocqhttp:GroupMessage:123456789",
+      "aiocqhttp:FriendMessage:987654321"
     ]
   }
 }
 ```
+
+> **重要说明**: `target_users` 必须使用完整的UMO(Unified Message Origin)格式，否则无法主动推送消息。
+> 
+> UMO格式为: `平台名:消息类型:会话ID`
+> - QQ群消息: `aiocqhttp:GroupMessage:群号`
+> - QQ私聊: `aiocqhttp:FriendMessage:QQ号`
+> 
+> 您可以在对应的群聊或私聊中发送 `/sid` 命令来获取正确的会话ID。
 
 ## ⚙️ 配置说明
 
@@ -79,7 +87,11 @@ pip install -r requirements.txt
   - `max_delay`: 最大重试延迟(秒)
 
 ### QQ推送配置
-- `target_users`: 接收消息的QQ号列表，支持多个
+- `target_users`: 接收消息的会话ID列表(必须使用UMO格式)
+  - UMO格式: `平台名:消息类型:会话ID`
+  - QQ群: `aiocqhttp:GroupMessage:群号`
+  - QQ私聊: `aiocqhttp:FriendMessage:QQ号`
+  - 使用 `/sid` 命令获取正确的会话ID
 - `message_format`: 消息显示格式
   - `include_title`: 是否包含消息标题
   - `include_priority`: 是否显示优先级
