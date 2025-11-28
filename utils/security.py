@@ -153,6 +153,72 @@ def validate_session_id(session_id: str) -> bool:
         return len(session_id) >= 8 and bool(re.match(r'^[a-zA-Z0-9]+$', session_id))
 
 
+# 已知的消息类型，用于验证UMO格式
+VALID_MESSAGE_TYPES = {
+    'GroupMessage',
+    'FriendMessage',
+    'PrivateMessage',
+    'DirectMessage',
+    'ChannelMessage',
+    # 其他可能的消息类型
+}
+
+
+def validate_umo_format(session_id: str) -> tuple[bool, Optional[str]]:
+    """验证UMO(Unified Message Origin)格式
+
+    UMO格式: platform_name:message_type:session_id
+    例如: aiocqhttp:GroupMessage:123456789
+
+    Args:
+        session_id: 待验证的会话ID
+
+    Returns:
+        tuple[bool, Optional[str]]: (是否有效, 错误信息)
+    """
+    if not isinstance(session_id, str):
+        return False, "会话ID必须是字符串"
+
+    session_id = session_id.strip()
+    if not session_id:
+        return False, "会话ID不能为空"
+
+    if ':' not in session_id:
+        return False, (
+            f"会话ID '{session_id}' 不是有效的UMO格式。"
+            f"请使用完整格式: 平台名:消息类型:会话ID，"
+            f"例如: aiocqhttp:GroupMessage:123456789"
+        )
+
+    parts = session_id.split(':')
+    if len(parts) < 3:
+        return False, (
+            f"UMO格式错误: '{session_id}' 需要至少3部分(平台名:消息类型:会话ID)，"
+            f"但只有{len(parts)}部分"
+        )
+
+    platform_name = parts[0].strip()
+    message_type = parts[1].strip()
+    target_id = ':'.join(parts[2:]).strip()  # session_id可能包含冒号
+
+    if not platform_name:
+        return False, "UMO格式错误: 平台名不能为空"
+
+    if not message_type:
+        return False, "UMO格式错误: 消息类型不能为空"
+
+    if not target_id:
+        return False, "UMO格式错误: 会话ID不能为空"
+
+    # 可选: 验证消息类型是否合法
+    # 注意: 不同平台可能有不同的消息类型，这里只做警告
+    if message_type not in VALID_MESSAGE_TYPES:
+        # 仅记录日志，不阻止使用未知的消息类型
+        pass
+
+    return True, None
+
+
 def validate_qq_number(qq: str) -> bool:
     """验证QQ号格式（已弃用，保留兼容性）"""
     if not isinstance(qq, str):

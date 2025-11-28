@@ -12,6 +12,13 @@ from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field, validator, root_validator
 from pydantic_settings import BaseSettings
 
+# 导入共享的验证函数
+try:
+    from ..utils.security import validate_umo_format
+except ImportError:
+    # 配置文件可能在AstrBot环境外独立加载
+    validate_umo_format = None
+
 
 class ReconnectConfig(BaseModel):
     """重连配置"""
@@ -73,25 +80,32 @@ class QQConfig(BaseModel):
             if not session_id:
                 raise ValueError('会话ID不能为空')
 
-            # 优先检查UMO格式（platform:message_type:session_id）
-            if ':' in session_id:
-                parts = session_id.split(':')
-                if len(parts) >= 3:
+            # 使用共享的UMO格式验证函数
+            if validate_umo_format is not None:
+                is_valid, error_msg = validate_umo_format(session_id)
+                if is_valid:
                     valid_sessions.append(session_id)
                 else:
-                    raise ValueError(
-                        f'无效的UMO格式: {session_id}。'
-                        f'正确格式为: 平台名:消息类型:会话ID，'
-                        f'例如: aiocqhttp:GroupMessage:123456789'
-                    )
+                    raise ValueError(error_msg)
             else:
-                # 不再支持纯session_id格式，给出明确错误
-                raise ValueError(
-                    f'会话ID "{session_id}" 格式不正确，无法用于主动推送消息。'
-                    f'请使用完整的UMO格式，如: aiocqhttp:GroupMessage:{session_id} (群聊) '
-                    f'或 aiocqhttp:FriendMessage:{session_id} (私聊)。'
-                    f'您可以在群聊或私聊中发送 /sid 命令获取正确的会话ID。'
-                )
+                # 回退到基本验证（在无法导入共享函数时）
+                if ':' in session_id:
+                    parts = session_id.split(':')
+                    if len(parts) >= 3 and all(part.strip() for part in parts):
+                        valid_sessions.append(session_id)
+                    else:
+                        raise ValueError(
+                            f'无效的UMO格式: {session_id}。'
+                            f'正确格式为: 平台名:消息类型:会话ID，'
+                            f'例如: aiocqhttp:GroupMessage:123456789'
+                        )
+                else:
+                    raise ValueError(
+                        f'会话ID "{session_id}" 格式不正确，无法用于主动推送消息。'
+                        f'请使用完整的UMO格式，如: aiocqhttp:GroupMessage:{session_id} (群聊) '
+                        f'或 aiocqhttp:FriendMessage:{session_id} (私聊)。'
+                        f'您可以在群聊或私聊中发送 /sid 命令获取正确的会话ID。'
+                    )
         return valid_sessions
 
 

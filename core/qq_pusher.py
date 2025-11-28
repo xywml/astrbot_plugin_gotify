@@ -21,7 +21,7 @@ except ImportError:  # AstrBot运行环境外的兼容处理
 from ..config import GotifyConfig
 from ..utils.logger import get_logger, LogContext
 from ..utils.storage import DataStorage
-from ..utils.security import validate_session_id, validate_qq_number, sanitize_message
+from ..utils.security import validate_session_id, validate_qq_number, validate_umo_format, sanitize_message
 
 
 @dataclass
@@ -139,31 +139,24 @@ class QQPusher:
         valid_sessions = []
         for session_id in session_ids:
             session_id = session_id.strip()
-            # 检查是否为完整的UMO格式 (platform:message_type:session_id)
-            if ':' in session_id:
-                parts = session_id.split(':')
-                if len(parts) >= 3:
-                    valid_sessions.append(session_id)
-                    self.logger.info(f"添加目标会话ID(UMO格式): {session_id}")
-                else:
-                    self.logger.error(f"无效的UMO格式(需要至少3部分): {session_id}")
-            # 兼容旧的纯QQ号格式，给出警告但不再自动添加错误前缀
-            elif validate_qq_number(session_id):
-                self.logger.error(
-                    f"检测到旧版QQ号格式 '{session_id}'，无法主动推送消息。"
-                    f"请使用完整的UMO格式，如: aiocqhttp:GroupMessage:{session_id} (群聊) "
-                    f"或 aiocqhttp:FriendMessage:{session_id} (私聊)。"
-                    f"您可以在群聊或私聊中发送 /sid 命令获取正确的会话ID。"
-                )
-            elif validate_session_id(session_id):
-                # 纯session_id格式（不含平台信息），给出警告
-                self.logger.error(
-                    f"会话ID '{session_id}' 缺少平台和消息类型信息，无法主动推送消息。"
-                    f"请使用完整的UMO格式，如: aiocqhttp:GroupMessage:xxx 或 aiocqhttp:FriendMessage:xxx。"
-                    f"您可以在群聊或私聊中发送 /sid 命令获取正确的会话ID。"
-                )
+
+            # 使用共享的UMO格式验证函数
+            is_valid, error_msg = validate_umo_format(session_id)
+
+            if is_valid:
+                valid_sessions.append(session_id)
+                self.logger.info(f"添加目标会话ID(UMO格式): {session_id}")
             else:
-                self.logger.error(f"无效的会话ID格式: {session_id}")
+                # 检查是否是旧的纯QQ号格式，给出更具体的错误提示
+                if validate_qq_number(session_id):
+                    self.logger.error(
+                        f"检测到旧版QQ号格式 '{session_id}'，无法主动推送消息。"
+                        f"请使用完整的UMO格式，如: aiocqhttp:GroupMessage:{session_id} (群聊) "
+                        f"或 aiocqhttp:FriendMessage:{session_id} (私聊)。"
+                        f"您可以在群聊或私聊中发送 /sid 命令获取正确的会话ID。"
+                    )
+                else:
+                    self.logger.error(error_msg)
 
         if not valid_sessions:
             raise ValueError(
