@@ -13,7 +13,7 @@
   },
   "qq": {
     "target_users": [
-      "24A91XXXXXXXXXXXXX"
+      "aiocqhttp:GroupMessage:123456789"
     ],
     "message_format": {
       "include_title": true,

@@ -12,7 +12,10 @@
     }
   },
   "qq": {
-    "target_users": ["123456789", "987654321"],
+    "target_users": [
+      "aiocqhttp:GroupMessage:123456789",
+      "aiocqhttp:FriendMessage:987654321"
+    ],
     "message_format": {
       "include_title": true,
       "include_priority": true,
